@@ -74,7 +74,10 @@ public class TestIcebergConfig
                 .setSplitManagerThreads(Runtime.getRuntime().availableProcessors() * 2)
                 .setAllowedExtraProperties(ImmutableList.of())
                 .setIncrementalRefreshEnabled(true)
-                .setMetadataCacheEnabled(true));
+                .setMetadataCacheEnabled(true)
+                .setIncrementalRefreshEnabled(true)
+                .setObjectStoreEnabled(false)
+                .setDataLocation(null));
     }
 
     @Test
@@ -111,6 +114,8 @@ public class TestIcebergConfig
                 .put("iceberg.allowed-extra-properties", "propX,propY")
                 .put("iceberg.incremental-refresh-enabled", "false")
                 .put("iceberg.metadata-cache.enabled", "false")
+                .put("iceberg.object-store.enabled", "true")
+                .put("iceberg.data-location", "data_location")
                 .buildOrThrow();
 
         IcebergConfig expected = new IcebergConfig()
@@ -143,7 +148,10 @@ public class TestIcebergConfig
                 .setSplitManagerThreads(42)
                 .setAllowedExtraProperties(ImmutableList.of("propX", "propY"))
                 .setIncrementalRefreshEnabled(false)
-                .setMetadataCacheEnabled(false);
+                .setMetadataCacheEnabled(false)
+                .setIncrementalRefreshEnabled(false)
+                .setObjectStoreEnabled(true)
+                .setDataLocation("data_location");
 
         assertFullMapping(properties, expected);
     }

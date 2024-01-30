@@ -5051,7 +5051,8 @@ public abstract class BaseIcebergConnectorTest
         assertThat(actual).isNotNull();
         MaterializedResult expected = resultBuilder(getSession())
                 .row("write.format.default", format.name())
-                .row("write.parquet.compression-codec", "zstd").build();
+                .row("write.parquet.compression-codec", "zstd")
+                .row("write.object-storage.enabled", "false").build();
         assertEqualsIgnoreOrder(actual.getMaterializedRows(), expected.getMaterializedRows());
     }
 
@@ -7475,6 +7476,10 @@ public abstract class BaseIcebergConnectorTest
                 "The following properties cannot be updated: location, orc_bloom_filter_fpp");
         assertQueryFails("ALTER TABLE " + tableName + " SET PROPERTIES format = 'ORC', orc_bloom_filter_columns = ARRAY['a']",
                 "The following properties cannot be updated: orc_bloom_filter_columns");
+        assertQueryFails("ALTER TABLE " + tableName + " SET PROPERTIES object_store_enabled = true",
+                "The following properties cannot be updated: object_store_enabled");
+        assertQueryFails("ALTER TABLE " + tableName + " SET PROPERTIES data_location = '/data'",
+                "The following properties cannot be updated: data_location");
 
         assertUpdate("DROP TABLE " + tableName);
     }
