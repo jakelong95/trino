@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static io.trino.plugin.hive.TableType.EXTERNAL_TABLE;
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
@@ -31,7 +32,7 @@ import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.testing.TestingConnectorSession.SESSION;
 import static org.assertj.core.api.Assertions.assertThat;
 
-final class TestIcebergTableWithObjectStore
+public class TestIcebergTableWithTablePropertyObjectStore
         extends AbstractTestQueryFramework
 {
     private HiveMetastore metastore;
@@ -42,9 +43,7 @@ final class TestIcebergTableWithObjectStore
             throws Exception
     {
         DistributedQueryRunner queryRunner = IcebergQueryRunner.builder()
-                .setIcebergProperties(Map.of(
-                        "iceberg.object-store.enabled", "true",
-                        "iceberg.data-location", "local:///table-location/xyz"))
+                .setIcebergProperties(Map.of("iceberg.object-store.enabled", "false"))
                 .build();
 
         metastore = ((IcebergConnector) queryRunner.getCoordinator().getConnector(ICEBERG_CATALOG)).getInjector()
@@ -57,10 +56,10 @@ final class TestIcebergTableWithObjectStore
     }
 
     @Test
-    void testCreateAndDrop()
+    void testCreateWithTablePropertyAndDrop()
             throws Exception
     {
-        assertQuerySucceeds("CREATE TABLE test_create_and_drop AS SELECT 1 AS val");
+        assertQuerySucceeds("CREATE TABLE test_create_and_drop WITH (object_store_enabled = TRUE, data_location = 'local:///table-location/xyz') AS SELECT 1 AS val");
         Table table = metastore.getTable("tpch", "test_create_and_drop").orElseThrow();
         assertThat(table.getTableType()).isEqualTo(EXTERNAL_TABLE.name());
 
@@ -79,23 +78,34 @@ final class TestIcebergTableWithObjectStore
     }
 
     @Test
-    void testCreateAndDropWithDifferentDataLocation()
+    void testCreateTableThenEnableObjectStore()
             throws Exception
     {
-        assertQuerySucceeds("CREATE TABLE test_create_and_drop_with_different_location WITH (data_location = 'local:///table-location-2/abc') AS SELECT 1 AS val");
-        Table table = metastore.getTable("tpch", "test_create_and_drop_with_different_location").orElseThrow();
+        assertQuerySucceeds("CREATE TABLE test_create_then_enable_object_store AS SELECT 1 AS val");
+        Table table = metastore.getTable("tpch", "test_create_then_enable_object_store").orElseThrow();
         assertThat(table.getTableType()).isEqualTo(EXTERNAL_TABLE.name());
 
         Location tableLocation = Location.of(table.getStorage().getLocation());
         assertThat(fileSystem.newInputFile(tableLocation).exists()).isTrue();
 
-        String filePath = (String) computeScalar("SELECT file_path FROM \"test_create_and_drop_with_different_location$files\"");
+        String filePath = (String) computeScalar("SELECT file_path FROM \"test_create_then_enable_object_store$files\"");
         Location dataFileLocation = Location.of(filePath);
         assertThat(fileSystem.newInputFile(dataFileLocation).exists()).isTrue();
-        assertThat(filePath).matches("local:///table-location-2/abc/.*/tpch/test_create_and_drop_with_different_location-.*/.*\\.parquet");
+        assertThat(filePath).startsWith("local:///tpch/test_create_then_enable_object_store");
 
-        assertQuerySucceeds("DROP TABLE test_create_and_drop_with_different_location");
-        assertThat(metastore.getTable("tpch", "test_create_and_drop_with_different_location")).isEmpty();
+        assertUpdate("ALTER TABLE test_create_then_enable_object_store SET PROPERTIES object_store_enabled = TRUE, data_location = 'local:///table-location-2/xyz'");
+        assertUpdate("INSERT INTO test_create_then_enable_object_store VALUES 2", 1);
+
+        Set<Object> filePaths = computeActual("SELECT file_path FROM \"test_create_then_enable_object_store$files\"").getOnlyColumnAsSet();
+        assertThat(filePaths.stream().map(Object::toString)).anySatisfy(newPath -> {
+            Location newDataFileLocation = Location.of(newPath);
+
+            assertThat(fileSystem.newInputFile(newDataFileLocation).exists()).isTrue();
+            assertThat(newPath).startsWith("local:///tpch/test_create_then_enable_object_store");
+        });
+
+        assertQuerySucceeds("DROP TABLE test_create_then_enable_object_store");
+        assertThat(metastore.getTable("tpch", "test_create_then_enable_object_store")).isEmpty();
         assertThat(fileSystem.newInputFile(dataFileLocation).exists()).isFalse();
         assertThat(fileSystem.newInputFile(tableLocation).exists()).isFalse();
     }
