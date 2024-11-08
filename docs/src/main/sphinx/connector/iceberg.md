@@ -808,6 +808,8 @@ The following table properties can be updated after a table is created:
 - `format_version`
 - `partitioning`
 - `sorted_by`
+- `object_store_enabled`
+- `data_location`
 
 For example, to update a table from v1 of the Iceberg specification to v2:
 
@@ -870,6 +872,10 @@ connector using a {doc}`WITH </sql/create-table-as>` clause.
   - Comma-separated list of columns to use for Parquet bloom filter. It improves
     the performance of queries using Equality and IN predicates when reading
     Parquet files. Requires Parquet format. Defaults to `[]`.
+* - `object_store_enabled`
+  - Whether Iceberg's [object store file layout](https://iceberg.apache.org/docs/latest/aws/#object-store-file-layout) is enabled. 
+* - `data_location`
+  - Optionally specifies the file system location URI for the table's data files
 * - `extra_properties`
   - Additional properties added to a Iceberg table. The properties are not used by Trino,
     and are available in the `$properties` metadata table.

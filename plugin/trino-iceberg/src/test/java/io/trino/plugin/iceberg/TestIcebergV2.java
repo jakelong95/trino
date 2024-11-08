@@ -200,6 +200,23 @@ public class TestIcebergV2
     }
 
     @Test
+    public void testSetPropertiesDataLocation()
+    {
+        try (TestTable table = new TestTable(getQueryRunner()::execute, "test_data_location", "(x int)")) {
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .doesNotContain("data_location =");
+            assertThat(loadTable(table.getName()).properties())
+                    .doesNotContainKey("write.data.path");
+
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES data_location = 'local:///data-location'");
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .contains("data_location = 'local:///data-location'");
+            assertThat(loadTable(table.getName()).properties())
+                    .containsEntry("write.data.path", "local:///data-location");
+        }
+    }
+
+    @Test
     public void testV2TableRead()
     {
         String tableName = "test_v2_table_read" + randomNameSuffix();

@@ -267,6 +267,7 @@ import static io.trino.plugin.iceberg.IcebergTableName.isDataTable;
 import static io.trino.plugin.iceberg.IcebergTableName.isIcebergTableName;
 import static io.trino.plugin.iceberg.IcebergTableName.isMaterializedViewStorage;
 import static io.trino.plugin.iceberg.IcebergTableName.tableNameFrom;
+import static io.trino.plugin.iceberg.IcebergTableProperties.DATA_LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.EXTRA_PROPERTIES_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FILE_FORMAT_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FORMAT_VERSION_PROPERTY;
@@ -359,6 +360,7 @@ import static org.apache.iceberg.TableProperties.DELETE_ISOLATION_LEVEL;
 import static org.apache.iceberg.TableProperties.DELETE_ISOLATION_LEVEL_DEFAULT;
 import static org.apache.iceberg.TableProperties.FORMAT_VERSION;
 import static org.apache.iceberg.TableProperties.OBJECT_STORE_ENABLED;
+import static org.apache.iceberg.TableProperties.WRITE_DATA_LOCATION;
 import static org.apache.iceberg.TableProperties.WRITE_LOCATION_PROVIDER_IMPL;
 import static org.apache.iceberg.expressions.Expressions.alwaysTrue;
 import static org.apache.iceberg.types.TypeUtil.indexParents;
@@ -379,6 +381,7 @@ public class IcebergMetadata
             .add(FILE_FORMAT_PROPERTY)
             .add(FORMAT_VERSION_PROPERTY)
             .add(OBJECT_STORE_ENABLED_PROPERTY)
+            .add(DATA_LOCATION_PROPERTY)
             .add(PARTITIONING_PROPERTY)
             .add(SORTED_BY_PROPERTY)
             .build();
@@ -2160,6 +2163,12 @@ public class IcebergMetadata
             boolean objectStoreEnabled = (boolean) properties.get(OBJECT_STORE_ENABLED_PROPERTY)
                     .orElseThrow(() -> new IllegalArgumentException("The object_store_enabled property cannot be empty"));
             updateProperties.set(OBJECT_STORE_ENABLED, Boolean.toString(objectStoreEnabled));
+        }
+
+        if (properties.containsKey(DATA_LOCATION_PROPERTY)) {
+            String dataLocation = (String) properties.get(DATA_LOCATION_PROPERTY)
+                    .orElseThrow(() -> new IllegalArgumentException("The data_location property cannot be empty"));
+            updateProperties.set(WRITE_DATA_LOCATION, dataLocation);
         }
 
         try {

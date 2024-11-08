@@ -117,6 +117,7 @@ import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_BAD_DATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_FILESYSTEM_ERROR;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_PARTITION_VALUE;
+import static io.trino.plugin.iceberg.IcebergTableProperties.DATA_LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FILE_FORMAT_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FORMAT_VERSION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.LOCATION_PROPERTY;
@@ -335,6 +336,9 @@ public final class IcebergUtil
         if (parseBoolean(icebergTable.properties().getOrDefault(OBJECT_STORE_ENABLED, "false"))) {
             properties.put(OBJECT_STORE_ENABLED_PROPERTY, true);
         }
+
+        Optional<String> dataLocation = getDataLocation(icebergTable.properties());
+        dataLocation.ifPresent(l -> properties.put(DATA_LOCATION_PROPERTY, l));
 
         return properties.buildOrThrow();
     }
@@ -1088,5 +1092,14 @@ public final class IcebergUtil
         catch (IOException e) {
             throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed to get file modification time: " + path, e);
         }
+    }
+
+    public static Optional<String> getDataLocation(Map<String, String> properties)
+    {
+        if (properties.containsKey(WRITE_DATA_LOCATION) && properties.get(WRITE_DATA_LOCATION) != null) {
+            return Optional.of(properties.get(WRITE_DATA_LOCATION));
+        }
+
+        return Optional.empty();
     }
 }
