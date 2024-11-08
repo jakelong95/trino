@@ -708,6 +708,8 @@ public class TestIcebergSparkCompatibility
                         " doc_id STRING)\n" +
                         " USING ICEBERG TBLPROPERTIES (" +
                         " 'write.format.default'='%s'," +
+                        " 'write.object-storage.enabled'=true," +
+                        " 'write.data.path'='local:///write-data-path'," +
                         " 'format-version' = %s," +
                         " 'custom.table-property' = 'my_custom_value')",
                 sparkTableName,
@@ -719,6 +721,8 @@ public class TestIcebergSparkCompatibility
                 .contains(
                         row("custom.table-property", "my_custom_value"),
                         row("write.format.default", storageFormat.name()),
+                        row("write.object-storage.enabled", "true"),
+                        row("write.data.path", "local:///write-data-path"),
                         row("owner", "hive"));
         onSpark().executeQuery("DROP TABLE IF EXISTS " + sparkTableName);
     }
@@ -730,9 +734,19 @@ public class TestIcebergSparkCompatibility
         String trinoTableName = trinoTableName(baseTableName);
         String sparkTableName = sparkTableName(baseTableName);
 
-        onTrino().executeQuery("CREATE TABLE " + trinoTableName + " (doc_id VARCHAR) WITH (extra_properties = MAP(ARRAY['custom.table-property'], ARRAY['my_custom_value']))");
+        onTrino().executeQuery(
+                "CREATE TABLE " + trinoTableName + " (doc_id VARCHAR)\n" +
+                        " WITH (" +
+                        " object_store_enabled = true," +
+                        " data_location = 'local:///write-data-path'," +
+                        " extra_properties = MAP(ARRAY['custom.table-property'], ARRAY['my_custom_value'])" +
+                        " )");
 
-        assertThat(onSpark().executeQuery("SHOW TBLPROPERTIES " + sparkTableName)).contains(row("custom.table-property", "my_custom_value"));
+        assertThat(onSpark().executeQuery("SHOW TBLPROPERTIES " + sparkTableName))
+                .contains(
+                        row("custom.table-property", "my_custom_value"),
+                        row("write.object-storage.enabled", "true"),
+                        row("write.data.path", "local:///write-data-path"));
 
         onTrino().executeQuery("DROP TABLE " + trinoTableName);
     }
